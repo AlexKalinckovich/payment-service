@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Builder
 public record PaymentEventDto(
-        Long paymentId,
+        String paymentId,
         Long orderId,
         LocalDateTime date,
         PaymentStatus paymentStatus

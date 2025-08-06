@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 @Builder
 public record PaymentResponseDto(
         String id,
-        String orderId,
-        String userId,
+        Long orderId,
+        Long userId,
         PaymentStatus status,
         LocalDateTime timeStamp,
         BigDecimal paymentAmount
