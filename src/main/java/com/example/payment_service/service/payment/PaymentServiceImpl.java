@@ -3,7 +3,6 @@ package com.example.payment_service.service.payment;
 import com.example.payment_service.dto.payment.PaymentCreateDto;
 import com.example.payment_service.dto.payment.PaymentResponseDto;
 import com.example.payment_service.dto.payment.PaymentUpdateDto;
-import com.example.payment_service.dto.randomNumberApi.RandomNumberResponseDto;
 import com.example.payment_service.exception.PaymentNotFound;
 import com.example.payment_service.mapper.PaymentMapper;
 import com.example.payment_service.model.Payment;
@@ -17,6 +16,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import javax.naming.ServiceUnavailableException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -48,26 +48,25 @@ public class PaymentServiceImpl implements PaymentService {
 
 
     @Override
-    public void createPayment(final PaymentCreateDto paymentCreateDto) throws ServiceUnavailableException {
+    public void createPayment(PaymentCreateDto paymentCreateDto) throws ServiceUnavailableException {
         paymentValidator.validateCreateDto(paymentCreateDto);
-
         final Payment entity = paymentMapper.toEntity(paymentCreateDto);
 
-        final RandomNumberResponseDto randomDto = randomNumberService
-                .getRandomNumber(MIN_RANDOM_VALUE, MAX_RANDOM_VALUE, 1)
-                .block();
+        entity.setTimestamp(paymentCreateDto.getTimestamp());
+        entity.setOrderId(paymentCreateDto.getOrderId());
 
-        if (randomDto == null) {
-            throw new ServiceUnavailableException("RandomApiService is unavailable");
+        final List<Long> numbers = randomNumberService.getRandomNumber(MIN_RANDOM_VALUE, MAX_RANDOM_VALUE, 1)
+                .blockOptional(Duration.ofSeconds(3))
+                .orElseThrow(() -> new ServiceUnavailableException("Random service timeout"));
+
+        if (!numbers.isEmpty()) {
+            final long n = numbers.getFirst();
+            entity.setStatus(n % 2 == 0 ? PaymentStatus.SUCCESS : PaymentStatus.FAILED);
+            final Payment saved = paymentRepository.save(entity);
+            paymentEventPublisher.publish(saved);
+        } else {
+            throw new ServiceUnavailableException("No numbers returned");
         }
-
-        final long n = randomDto.numbers().getFirst();
-        entity.setStatus(n % 2 == 0 ? PaymentStatus.SUCCESS : PaymentStatus.FAILED);
-        final Payment saved = paymentRepository.save(entity);
-
-        paymentEventPublisher.publish(saved);
-
-        paymentMapper.toResponseDto(saved);
     }
 
     @Override
