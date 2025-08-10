@@ -3,7 +3,6 @@ package com.example.payment_service;
 import com.example.payment_service.dto.payment.PaymentCreateDto;
 import com.example.payment_service.dto.payment.PaymentResponseDto;
 import com.example.payment_service.dto.payment.PaymentUpdateDto;
-import com.example.payment_service.dto.randomNumberApi.RandomNumberResponseDto;
 import com.example.payment_service.exception.PaymentNotFound;
 import com.example.payment_service.mapper.PaymentMapper;
 import com.example.payment_service.model.Payment;
@@ -95,7 +94,7 @@ public class PaymentServiceIntegrationTests {
 
     @Test
     void createPayment_evenRandom_succeedsAndPublishesEvent() {
-        final RandomNumberResponseDto rndDto = new RandomNumberResponseDto(List.of(42L));
+        final List<Long> rndDto = List.of(42L);
         final Payment payment = Payment.builder()
                 .status(PaymentStatus.SUCCESS)
                 .timestamp(NOW)
@@ -119,7 +118,7 @@ public class PaymentServiceIntegrationTests {
 
     @Test
     void createPayment_oddRandom_succeedsWithFailedStatus() {
-        final RandomNumberResponseDto rndDto = new RandomNumberResponseDto(List.of(41L));
+        final List<Long> rndDto = List.of(42L);
         final Payment payment = Payment.builder()
                 .status(PaymentStatus.SUCCESS)
                 .timestamp(NOW)

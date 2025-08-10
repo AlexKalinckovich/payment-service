@@ -9,7 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
-    @Value("${RANDOM_API_URI}")
+    @Value("${services.random-number-api}")
     private String randomApi;
 
     @Bean
