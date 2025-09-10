@@ -12,6 +12,6 @@ public record PaymentResponseDto(
         Long orderId,
         Long userId,
         PaymentStatus status,
-        LocalDateTime timeStamp,
+        LocalDateTime timestamp,
         BigDecimal paymentAmount
 ) {}

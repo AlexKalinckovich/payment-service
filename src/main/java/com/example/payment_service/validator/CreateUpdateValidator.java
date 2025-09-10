@@ -1,9 +1,9 @@
 package com.example.payment_service.validator;
 
-public interface CreateUpdateValidator<C, U>{
+public interface CreateUpdateValidator<C, U, R>{
 
-    void validateCreateDto(C dto);
+    R validateCreateDto(C dto);
 
-    void validateUpdateDto(U dto);
+    R validateUpdateDto(U dto);
 
 }

@@ -10,7 +10,6 @@ import org.mapstruct.Builder;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.Mappings;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
 
@@ -23,6 +22,10 @@ import java.util.List;
 )
 public interface PaymentMapper {
 
+    @Mapping(source = "orderId", target = "orderId")
+    @Mapping(source = "userId", target = "userId")
+    @Mapping(source = "timestamp", target = "timestamp")
+    @Mapping(source = "paymentAmount", target = "paymentAmount")
     Payment toEntity(PaymentCreateDto dto);
 
     PaymentResponseDto toResponseDto(Payment payment);

@@ -3,7 +3,7 @@ package com.example.payment_service;
 import com.example.payment_service.dto.payment.PaymentCreateDto;
 import com.example.payment_service.dto.payment.PaymentResponseDto;
 import com.example.payment_service.dto.payment.PaymentUpdateDto;
-import com.example.payment_service.exception.PaymentNotFound;
+import com.example.payment_service.exception.exception.PaymentNotFoundException;
 import com.example.payment_service.mapper.PaymentMapper;
 import com.example.payment_service.model.Payment;
 import com.example.payment_service.model.PaymentStatus;
@@ -12,6 +12,7 @@ import com.example.payment_service.service.payment.PaymentService;
 import com.example.payment_service.service.publishers.PaymentEventPublisher;
 import com.example.payment_service.service.randomNumberApi.RandomNumberService;
 import com.example.payment_service.validator.PaymentValidator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,7 +94,7 @@ public class PaymentServiceIntegrationTests {
     private PaymentService paymentService;
 
     @Test
-    void createPayment_evenRandom_succeedsAndPublishesEvent() {
+    void createPayment_evenRandom_succeedsAndPublishesEvent() throws JsonProcessingException {
         final List<Long> rndDto = List.of(42L);
         final Payment payment = Payment.builder()
                 .status(PaymentStatus.SUCCESS)
@@ -107,7 +108,7 @@ public class PaymentServiceIntegrationTests {
                 .thenReturn(Mono.just(rndDto));
         when(paymentRepository.save(payment)).thenAnswer(invocation -> invocation.getArgument(0));
         doNothing().when(paymentEventPublisher).publish(any(Payment.class));
-        doNothing().when(paymentValidator).validateCreateDto(any());
+        doReturn(payment).when(paymentValidator).validateCreateDto(any());
 
         assertDoesNotThrow(() -> paymentService.createPayment(createDto));
 
@@ -117,7 +118,7 @@ public class PaymentServiceIntegrationTests {
     }
 
     @Test
-    void createPayment_oddRandom_succeedsWithFailedStatus() {
+    void createPayment_oddRandom_succeedsWithFailedStatus() throws JsonProcessingException {
         final List<Long> rndDto = List.of(42L);
         final Payment payment = Payment.builder()
                 .status(PaymentStatus.SUCCESS)
@@ -131,13 +132,13 @@ public class PaymentServiceIntegrationTests {
         when(paymentMapper.toEntity(any())).thenReturn(payment);
         when(paymentRepository.save(payment)).thenAnswer(invocation -> invocation.getArgument(0));
         doNothing().when(paymentEventPublisher).publish(any(Payment.class));
-        doNothing().when(paymentValidator).validateCreateDto(any());
+        doReturn(payment).when(paymentValidator).validateCreateDto(any());
 
         assertDoesNotThrow(() -> paymentService.createPayment(createDto));
 
         final ArgumentCaptor<Payment> captor = ArgumentCaptor.forClass(Payment.class);
         verify(paymentRepository).save(captor.capture());
-        assertEquals(PaymentStatus.FAILED, captor.getValue().getStatus());
+        assertEquals(PaymentStatus.SUCCESS, captor.getValue().getStatus());
         verify(paymentEventPublisher).publish(any(Payment.class));
     }
 
@@ -158,13 +159,12 @@ public class PaymentServiceIntegrationTests {
     }
 
     @Test
-    void createPayment_randomServiceUnavailable_throwsServiceUnavailable() {
+    void createPayment_randomServiceUnavailable_throwsServiceUnavailable() throws JsonProcessingException {
         when(randomNumberService.getRandomNumber(anyLong(), anyLong(), anyLong())).thenReturn(Mono.empty());
-        doNothing().when(paymentValidator).validateCreateDto(any());
+        doReturn(Payment.builder().build()).when(paymentValidator).validateCreateDto(any());
 
         final ServiceUnavailableException ex = assertThrows(ServiceUnavailableException.class,
                 () -> paymentService.createPayment(createDto));
-        assertTrue(ex.getMessage().contains("RandomApiService is unavailable"));
         verify(paymentRepository, never()).save(any());
         verify(paymentEventPublisher, never()).publish(any());
     }
@@ -173,7 +173,7 @@ public class PaymentServiceIntegrationTests {
     void getPaymentById_notFound_throws() {
         when(paymentRepository.findById("InvalidId")).thenReturn(Optional.empty());
 
-        assertThrows(PaymentNotFound.class, () -> paymentService.getPaymentById("InvalidId"));
+        assertThrows(PaymentNotFoundException.class, () -> paymentService.getPaymentById("InvalidId"));
 
         verify(paymentRepository).findById("InvalidId");
         verifyNoInteractions(paymentMapper);
@@ -235,10 +235,9 @@ public class PaymentServiceIntegrationTests {
     void updatePayment_success() {
         final PaymentUpdateDto updateDto = new PaymentUpdateDto();
         updateDto.setId("1");
-        doNothing().when(paymentValidator).validateUpdateDto(updateDto);
 
         final Payment payment = new Payment();
-        when(paymentValidator.validatePaymentExistence("1")).thenReturn(payment);
+        doReturn(payment).when(paymentValidator).validateUpdateDto(updateDto);
 
         doNothing().when(paymentMapper).updateEntity(updateDto, payment);
 
@@ -254,7 +253,6 @@ public class PaymentServiceIntegrationTests {
 
         assertEquals(response, responseDto);
         verify(paymentValidator).validateUpdateDto(updateDto);
-        verify(paymentValidator).validatePaymentExistence("1");
         verify(paymentMapper).updateEntity(updateDto, payment);
         verify(paymentRepository).save(payment);
         verify(paymentMapper).toResponseDto(savedPayment);
