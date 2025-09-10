@@ -3,7 +3,9 @@ spring:
   application:
     name: payment-service
   config:
-    import: optional:file:.env
+    import:
+      - optional:file:.env
+      - classpath:error-message.properties
   data:
     mongodb:
       uri: ${MONGO_DB_URI}
@@ -27,6 +29,8 @@ spring:
         spring.json.trusted.packages: '*'
 
 server:
-  port: ${SPRING_APPLICATION_PORT}
+  port: ${SPRING_APPLICATION_PORT:8085}
 services:
   random-number-api: ${RANDOM_API_URI}
+  order-service-api: ${ORDER_SERVICE_URL}
+  user-service-api: ${USER_SERVICE_URL}

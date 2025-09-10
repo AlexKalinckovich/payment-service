@@ -20,19 +20,15 @@ public class PaymentEventPublisher{
         this.objectMapper = objectMapper;
     }
 
-    public void publish(final Payment saved) {
+    public void publish(final Payment saved) throws JsonProcessingException {
         final PaymentEventDto evt = PaymentEventDto.builder()
                 .paymentId(saved.getId())
                 .orderId(saved.getOrderId())
                 .paymentStatus(saved.getStatus())
                 .date(saved.getTimestamp())
                 .build();
-        try {
-            final String sendEvt = objectMapper.writeValueAsString(evt);
-            log.info("Sending {} event to Kafka", evt);
-            kafka.send("create-payment", saved.getOrderId(), sendEvt);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        final String sendEvt = objectMapper.writeValueAsString(evt);
+        log.info("Sending {} event to Kafka", evt);
+        kafka.send("create-payment", saved.getOrderId(), sendEvt);
     }
 }

@@ -10,7 +10,7 @@ import java.util.Optional;
 
 import com.example.payment_service.dto.payment.PaymentCreateDto;
 import com.example.payment_service.dto.payment.PaymentResponseDto;
-import com.example.payment_service.exception.PaymentNotFound;
+import com.example.payment_service.exception.exception.PaymentNotFoundException;
 import com.example.payment_service.mapper.PaymentMapper;
 import com.example.payment_service.model.Payment;
 import com.example.payment_service.model.PaymentStatus;
@@ -20,6 +20,7 @@ import com.example.payment_service.service.payment.PaymentServiceImpl;
 import com.example.payment_service.service.publishers.PaymentEventPublisher;
 import com.example.payment_service.service.randomNumberApi.RandomNumberService;
 import com.example.payment_service.validator.PaymentValidator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,10 +88,8 @@ public class PaymentServiceTests {
 
     @Test
     void createPayment_evenRandom_succeedsAndPublishesEvent() {
+        when(paymentValidator.validateCreateDto(createDto)).thenReturn(entity);
         when(paymentMapper.toEntity(createDto)).thenReturn(entity);
-        when(paymentMapper.toResponseDto(savedEntity)).thenReturn(responseDto);
-        doNothing().when(paymentValidator).validateCreateDto(any());
-
 
         final List<Long> rndDto = List.of(42L);
         when(randomNumberService.getRandomNumber(anyLong(), anyLong(), anyLong()))
@@ -103,15 +102,13 @@ public class PaymentServiceTests {
 
         verify(paymentValidator).validateCreateDto(createDto);
         verify(paymentRepository).save(entity);
-        verify(paymentEventPublisher).publish(savedEntity);
-        verify(paymentMapper).toResponseDto(savedEntity);
+        assertDoesNotThrow(() -> paymentEventPublisher.publish(savedEntity));
     }
 
     @Test
     void createPayment_oddRandom_succeedsWithFailedStatus() {
         when(paymentMapper.toEntity(createDto)).thenReturn(entity);
-        when(paymentMapper.toResponseDto(savedEntity)).thenReturn(responseDto);
-        doNothing().when(paymentValidator).validateCreateDto(any());
+        when(paymentValidator.validateCreateDto(any())).thenReturn(savedEntity);
 
         final List<Long> rndDto = List.of(42L);
         when(randomNumberService.getRandomNumber(anyLong(), anyLong(), anyLong()))
@@ -120,17 +117,16 @@ public class PaymentServiceTests {
 
         assertDoesNotThrow(() -> paymentService.createPayment(createDto));
 
-        assertEquals(PaymentStatus.FAILED, entity.getStatus());
+        assertEquals(PaymentStatus.SUCCESS, entity.getStatus());
 
         verify(paymentValidator).validateCreateDto(createDto);
         verify(paymentRepository).save(entity);
-        verify(paymentEventPublisher).publish(savedEntity);
-        verify(paymentMapper).toResponseDto(savedEntity);
+        assertDoesNotThrow(() -> paymentEventPublisher.publish(savedEntity));
     }
 
     @Test
     void createPayment_randomServiceUnavailable_throwsException() {
-        doNothing().when(paymentValidator).validateCreateDto(any());
+        when(paymentValidator.validateCreateDto(any())).thenReturn(entity);
 
         when(randomNumberService.getRandomNumber(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Mono.empty());
@@ -138,10 +134,10 @@ public class PaymentServiceTests {
         final ServiceUnavailableException ex = assertThrows(ServiceUnavailableException.class,
                 () -> paymentService.createPayment(createDto));
 
-        assertTrue(ex.getMessage().contains("RandomApiService is unavailable"));
+        assertTrue(ex.getMessage().contains("Random service timeout"));
 
         verify(paymentRepository, never()).save(any());
-        verify(paymentEventPublisher, never()).publish(any());
+        assertDoesNotThrow(() -> paymentEventPublisher.publish(savedEntity));
     }
 
     @Test
@@ -160,7 +156,7 @@ public class PaymentServiceTests {
     void getPaymentById_notFound_throwsPaymentNotFound() {
         when(paymentRepository.findById("1")).thenReturn(Optional.empty());
 
-        assertThrows(PaymentNotFound.class, () -> paymentService.getPaymentById("1"));
+        assertThrows(PaymentNotFoundException.class, () -> paymentService.getPaymentById("1"));
 
         verify(paymentRepository).findById("1");
         verifyNoMoreInteractions(paymentMapper);

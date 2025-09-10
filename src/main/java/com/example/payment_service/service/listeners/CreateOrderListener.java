@@ -25,7 +25,7 @@ public class CreateOrderListener {
     }
 
     @KafkaListener(topics = "create-order", groupId = "payment-group")
-    public void onNewOrder(final String orderEvent) throws ServiceUnavailableException {
+    public void onNewOrder(final String orderEvent) throws ServiceUnavailableException, JsonProcessingException {
         log.info("Received order event {}", orderEvent);
         final OrderEventDto orderEventDto;
         try {
